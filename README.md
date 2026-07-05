@@ -20,5 +20,6 @@ inside this repo.
 
 ## Status
 
-M0 spec ✅ · **M1 manual pilot — ready to execute, see spec §13.1** · M2 `self`
-CLI · M3 Codex adapter · M4 evidence-driven extensions.
+M0 spec ✅ · **M1 manual pilot — ready to execute, see spec §13.1** (includes a
+copy-paste `/goal` invocation) · M2 `self` CLI · M3 Codex adapter · M4
+evidence-driven extensions.

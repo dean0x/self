@@ -565,23 +565,40 @@ Execute top to bottom; stop on any acceptance failure.
    `Bash(git -C ~/.self *)`. Verify rule syntax against current docs; if permission
    prompts still appear during the pilot, add the expanded-path (`/Users/…`) forms.
 
-**Acceptance — install-time (all must pass):**
+**Acceptance — in-place (an executor verifies all of these in one session, showing
+evidence in-conversation for each):**
 
 - A1 Marker integrity: exactly one `self:start`/`self:end` pair in
-  `~/.claude/CLAUDE.md`; content outside it byte-identical to before.
-- A2 Dispatch: a fresh session in another project launches both subagents in the
-  background on turn one and proceeds with the user's request without waiting.
-- A3 First pass: once a transcript is ≥ 15 min idle, the next dispatch appends a
-  learner line to `~/.self/log/runs.md` with a matching commit in `~/.self`.
-- A4 Restraint: a learner pass over a trivial session (short Q&A) logs `no-op`.
-- A5 Throttle: a second dispatch within 30 min of a logged learner run adds
-  nothing (no line, no commit).
+  `~/.claude/CLAUDE.md`; a diff proves content outside the markers is unchanged.
+- A2 Learner end-to-end: dispatch the `self-learner` subagent directly (Agent
+  tool). It must select a real idle transcript, append exactly one run line to
+  `~/.self/log/runs.md`, and commit — or log `no-op (no backlog)` if none is
+  eligible. Show the run line and `git -C ~/.self log --oneline`.
+- A3 Throttle: immediately dispatch `self-learner` again — it must leave no trace
+  (no new line, no new commit; shown).
+- A4 Improver end-to-end: dispatch `self-improver` once — exactly one run line
+  (likely `no-op`) and a commit (shown).
+- A5 Seed intact after the runs: `REGISTRY.md` still lists S-0001 and the ci-gate
+  skill file is unmodified.
 
-**Acceptance — pilot-period (checked over the ~2 weeks):**
+**Acceptance — live pilot (first real sessions, over the ~2 weeks):**
 
-- A6 Routing: `ci-gate` fires in a session that merges to main (`fired` bumps on
+- A6 Dispatch: a fresh *interactive* session in another project launches both
+  subagents on turn one and proceeds without waiting. (Not testable headlessly —
+  the preamble deliberately skips non-interactive runs.)
+- A7 Restraint in the wild: learner passes over trivial sessions log `no-op`.
+- A8 Routing: `ci-gate` fires in a session that merges to main (`fired` bumps on
   the next audit).
-- A7 The §12 metrics are computable from `runs.md` + `REGISTRY.md` alone.
+- A9 The §12 metrics are computable from `runs.md` + `REGISTRY.md` alone.
+
+**Running M1 with the native `/goal` command** (v2.1.139+): the goal evaluator
+judges only what the transcript shows, so the condition below names in-place
+evidence only (A6–A9 verify themselves during normal use). Start a session in
+this repo and paste:
+
+```
+/goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md listing S-0001, observations.md, retired.md, log/runs.md); ~/.claude/skills/ci-gate/SKILL.md is installed and ~/.claude/commands/self-learning/ci-gate-before-merge.md is deleted; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 5 are present in ~/.claude/settings.json; a dispatched self-learner subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched self-improver appended one run line with a commit, shown. Or stop after 25 turns.
+```
 
 **Rollback:** remove the marker block and the two `~/.claude/agents/self-*.md`
 files; leave `~/.self` and learned skills in place (they are inert without
