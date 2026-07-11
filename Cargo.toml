@@ -1,0 +1,11 @@
+[package]
+name = "self-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "self"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order"] }

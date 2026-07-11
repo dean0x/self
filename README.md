@@ -8,18 +8,21 @@ substance is in **[spec.md](spec.md)**; read that first.
 ## Layout
 
 - `spec.md` — the system spec. §13.1 is the executor-ready M1 runbook.
-- `templates/` — canonical install artifacts (M1: plain markdown; M2 turns them
-  into `.mds` sources compiled into the `self` CLI):
+- `Cargo.toml`, `src/`, `tests/` — the `self` CLI (M2): thin installer with
+  `init` / `status` / `doctor` / `uninstall`.
+- `templates/` — canonical install artifacts (plain markdown, embedded into the
+  CLI at build):
   - `preamble.md` — marker block installed into `~/.claude/CLAUDE.md` (M3: `~/.codex/AGENTS.md`)
   - `constitution.md` — invariants, installed to `~/.self/constitution.md`
   - `agents/` — background agent definitions (`self-learner`, `self-improver`)
   - `seed/` — initial `~/.self` corpus, including the `ci-gate` seed skill (S-0001)
 
 The installed instance lives at `~/.self` (git-tracked, agent-owned) — never
-inside this repo.
+inside this repo. Build with `cargo build --release`; the binary is
+`target/release/self`.
 
 ## Status
 
-M0 spec ✅ · **M1 manual pilot — ready to execute, see spec §13.1** (includes a
-copy-paste `/goal` invocation) · M2 `self` CLI · M3 Codex adapter · M4
-evidence-driven extensions.
+M0 spec ✅ · M1 manual pilot ✅ installed 2026-07-11 (live ~2-week window running) ·
+M2 `self` CLI ✅ · M3 Codex adapter (gated: codex not installed) · M4
+evidence-driven extensions (gated on improver run-log evidence).

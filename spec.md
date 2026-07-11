@@ -150,8 +150,8 @@ One marker-delimited block, identical in substance across tools, installed into:
 
 **Budget: ≤ 25 lines.** The block is static — routing lives entirely in native skill
 descriptions, so nothing here changes as the corpus grows, and nothing mirrors or
-syncs. Canonical text: `templates/preamble.md` in the repo (becomes an `.mds`
-source at M2):
+syncs. Canonical text: `templates/preamble.md` in the repo (embedded
+into the CLI at build from M2 on):
 
 ```markdown
 <!-- self:start v0.3 -->
@@ -458,8 +458,8 @@ refined(slug) | retired(slug,reason) | merged | tuned(file) | repaired | blocked
 
 A thin, deterministic **installer** — file plumbing only, zero runtime role, zero
 judgment. Rust, single static binary (`cargo install self-cli`, brew tap later);
-factory templates authored as `.mds`, compiled by `mds build` at build time, embedded
-via `include_str!`. Runtime dependency count: zero (git assumed present).
+factory templates in `templates/` embedded at build via
+`include_str!` (`.mds` authoring deferred until `mds` exists on the build machine). Runtime dependency count: zero (git assumed present).
 
 | Command | Behavior |
 |---|---|
@@ -532,8 +532,8 @@ uninstall rather than tune (the graveyard of memory systems is full of tuned one
   runbook in §13.1, Claude Code only. Run ~2 weeks, purely ambient. Validates the
   riskiest assumptions — dispatch rate, description-routing fire rate, learner
   judgment — before any Rust is written.
-- **M2 — `self` CLI:** init/status/doctor/uninstall; mds-templated factory defaults;
-  pilot state migrates cleanly.
+- **M2 — `self` CLI:** init/status/doctor/uninstall; factory defaults embedded from
+  `templates/`; pilot state migrates cleanly.
 - **M3 — Codex adapter:** when codex is reinstalled — AGENTS.md block, TOML agents,
   rollout-transcript reading in the learner, skills-dir version detection,
   verify `multi_agent`.

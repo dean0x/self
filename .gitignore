@@ -10,3 +10,6 @@
 !.devflow/features/*/
 .devflow/features/*/*
 !.devflow/features/*/KNOWLEDGE.md
+
+# Rust build artifacts
+/target
