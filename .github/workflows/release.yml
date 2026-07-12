@@ -22,7 +22,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust (rustfmt + clippy)
         uses: dtolnay/rust-toolchain@stable
@@ -113,7 +113,7 @@ jobs:
             ext: ".exe"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust (${{ matrix.target }})
         uses: dtolnay/rust-toolchain@stable
@@ -153,14 +153,14 @@ jobs:
           "$hash  $name.zip`n" | Out-File -Encoding ascii -NoNewline "dist/$name.zip.sha256"
 
       - name: Upload release archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: archive-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
 
       - name: Upload raw binary (for npm packaging)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/self${{ matrix.ext }}
@@ -178,7 +178,7 @@ jobs:
       contents: write
     steps:
       - name: Download all archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: archive-*
@@ -226,10 +226,10 @@ jobs:
       id-token: write # OIDC token for npm trusted publishing
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node (>= 22.14 required for trusted publishing)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
@@ -243,7 +243,7 @@ jobs:
           npm --version
 
       - name: Download platform binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: binaries
           pattern: binary-*
@@ -297,7 +297,7 @@ jobs:
       id-token: write # OIDC token for crates.io trusted publishing
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
