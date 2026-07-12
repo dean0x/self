@@ -116,7 +116,7 @@ fn extract_counter(s: &str, key: &str) -> Option<u64> {
 mod tests {
     use super::*;
 
-    const SAMPLE_LINE: &str = "- S-0001 | ci-gate | user | ~/.claude/skills/ci-gate/SKILL.md | created: 2026-07-05 | src: obs-0001+obs-0002 | fired: 3 applied: 2 contradicted: 0 invoked: 1 refined: 0 | flags: -";
+    const SAMPLE_LINE: &str = "- S-0042 | tidy-imports | user | ~/.claude/skills/tidy-imports/SKILL.md | created: 2026-01-15 | src: obs-0007+obs-0019 | fired: 3 applied: 2 contradicted: 0 invoked: 1 refined: 0 | flags: -";
 
     #[test]
     fn parse_single_entry() {
@@ -124,10 +124,10 @@ mod tests {
         assert_eq!(bad, 0);
         assert_eq!(entries.len(), 1);
         let e = &entries[0];
-        assert_eq!(e.id, "S-0001");
-        assert_eq!(e.slug, "ci-gate");
+        assert_eq!(e.id, "S-0042");
+        assert_eq!(e.slug, "tidy-imports");
         assert_eq!(e.scope, "user");
-        assert_eq!(e.raw_path, "~/.claude/skills/ci-gate/SKILL.md");
+        assert_eq!(e.raw_path, "~/.claude/skills/tidy-imports/SKILL.md");
         assert_eq!(e.fired, 3);
         assert_eq!(e.applied, 2);
         assert_eq!(e.contradicted, 0);
@@ -170,7 +170,7 @@ mod tests {
         let path = entries[0].skill_path(&home);
         assert_eq!(
             path,
-            std::path::PathBuf::from("/home/testuser/.claude/skills/ci-gate/SKILL.md")
+            std::path::PathBuf::from("/home/testuser/.claude/skills/tidy-imports/SKILL.md")
         );
     }
 

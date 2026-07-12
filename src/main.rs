@@ -2,7 +2,6 @@ mod cmd_doctor;
 mod cmd_init;
 mod cmd_status;
 mod cmd_uninstall;
-mod corpus;
 mod error;
 mod markers;
 mod paths;

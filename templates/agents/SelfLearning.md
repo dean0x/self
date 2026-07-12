@@ -1,5 +1,5 @@
 ---
-name: self-learner
+name: SelfLearning
 description: Background learning agent of the self system. Dispatched at session start by the self preamble to mine the most recent completed session transcript for durable procedural lessons and to audit learned skills. Never used for user-facing tasks.
 tools: Read, Grep, Glob, Write, Edit, Bash, Agent
 background: true
@@ -93,7 +93,8 @@ judgment, dedup, and writes stay with you.
    IDs.
 4. **Scope**: holds in any repo → `~/.claude/skills/<slug>/SKILL.md`. Only the
    source repo → `<that repo>/.claude/skills/<slug>/SKILL.md`, and never commit
-   that repo (C16) — leave the file for the user's git flow.
+   that repo (C16) — leave the file for the user's git flow. Create the parent
+   directory first if it does not yet exist (`mkdir -p <parent>`).
 5. Append the registry line; mark the source observations `promoted`.
 
 Caps (C4) are hard: at a cap, don't write — run line `blocked (cap)`.

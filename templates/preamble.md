@@ -4,7 +4,7 @@
 **Dispatch** — only if ALL are true: this is the first turn of the conversation
 (no prior assistant turns), you are the main agent (not a subagent), and this is
 an interactive user session (not an automated/headless run). Then: launch the
-`self-learner` and `self-improver` subagents in the background NOW, do not wait
+`SelfLearning` and `SelfImproving` subagents in the background NOW, do not wait
 for or report their results, and proceed directly with the user's request.
 Both agents self-throttle; launching them redundantly is cheap and safe.
 

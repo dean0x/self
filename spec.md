@@ -115,6 +115,13 @@ Git-initialized by `self init`. Every mutating agent run ends with one commit �
   log/runs.md            # one line per completed agent run (§8.4)
 ```
 
+**A fresh install is empty.** `self init` writes these five files with their headers
+and nothing else: no skills, no observations, no registry entries. The system ships
+no procedures and holds no opinion about how you work — everything the corpus ever
+contains was mined by the learner from your own sessions and gated by the rule of two
+(C3). There is no factory content to trust, tune, or delete; an empty corpus is the
+correct steady state until the system has earned an entry.
+
 Agent instructions do **not** live here. They live in each tool's native agent
 location (§6) — one copy per tool, no shadow copies. The improver keeps tool variants
 semantically consistent (C10).
@@ -131,6 +138,10 @@ any repository, or only in the one the source session ran in?*
 
 Scope placement is also the context-cost control: a project-scoped skill's description
 loads only in that project's sessions.
+
+Because nothing is seeded, `self init` creates no skill directory: the learner creates
+the target directory itself when it writes its first promoted skill (the install only
+grants the permissions for it, §10).
 
 **Project repos are never committed by this system** (C16): a project-scoped skill is
 written into the repo's skill directory and left uncommitted — it surfaces in the
@@ -160,7 +171,7 @@ into the CLI at build from M2 on):
 **Dispatch** — only if ALL are true: this is the first turn of the conversation
 (no prior assistant turns), you are the main agent (not a subagent), and this is
 an interactive user session (not an automated/headless run). Then: launch the
-`self-learner` and `self-improver` subagents in the background NOW, do not wait
+`SelfLearning` and `SelfImproving` subagents in the background NOW, do not wait
 for or report their results, and proceed directly with the user's request.
 Both agents self-throttle; launching them redundantly is cheap and safe.
 
@@ -180,7 +191,7 @@ no `claude -p`, no `codex exec`, no hooks spawning processes.
 
 | | Claude Code | Codex |
 |---|---|---|
-| Agent definition | `~/.claude/agents/self-learner.md`, `self-improver.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/self-learner.toml`, `self-improver.toml` (`name`, `description`, `developer_instructions`; model inherited) |
+| Agent definition | `~/.claude/agents/SelfLearning.md`, `SelfImproving.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/SelfLearning.toml`, `SelfImproving.toml` (`name`, `description`, `developer_instructions`; model inherited) |
 | Launch mechanism | Agent/Task tool, background (default since v2.1.198); main conversation continues | native in-process subagent threads (`features.multi_agent`, default-on in current builds; `[agents] max_threads=6`) |
 | Trigger | preamble instruction | preamble instruction (Codex spawns subagents only when the prompt asks — same model) |
 | Lifetime | **killed if the user exits the session** | scoped to the session |
@@ -354,22 +365,27 @@ improver's integrity pass.
 
 ### 8.1 A learned skill (`SKILL.md` — purely native, no system frontmatter)
 
+The example below is **hypothetical** — an illustration of the shape, not an artifact
+you will find anywhere. No skill ships with the system (§4.1); every real one is
+written by the learner, in your own corpus, from your own sessions.
+
 ```markdown
 ---
-name: ci-gate
-description: Use when merging or squash-merging any branch into main, or pushing to main — verify CI is green first.
+name: port-conflict
+description: Use when a dev server fails to start with EADDRINUSE — reclaim the port, don't switch it.
 ---
 
-# ci-gate
+# port-conflict
 
-When a merge to main is requested:
-1. Check CI: `gh pr checks` (or `gh run list --branch <branch>`)
-2. If failing — fix first. `--admin` bypasses protection rules, not this gate.
-3. Merge only when green.
+When a dev server won't bind because the port is already taken:
+1. Identify the holder: `lsof -ti :<port>` (or `ss -lptn 'sport = :<port>'`).
+2. If it's a stale process from an earlier session, kill it and retry the same port.
+3. Don't route around it by changing the configured port — callbacks, proxies, and
+   `.env` files hardcode the original.
 
 ## Why
-Requested by the user across independent sessions (obs-0007, obs-0019); merging on
-red cost a revert cycle.
+Recurred in two independent sessions (obs-0007, obs-0019); switching the port broke
+the OAuth callback both times and cost a debugging cycle.
 ```
 
 Name: 1–3 words, like a real human skill (C15). Description: the trigger, ≤ 25 words —
@@ -381,16 +397,21 @@ host tool.
 ### 8.2 `observations.md` (append-only)
 
 ```markdown
-- obs-0007 | 2026-07-04 | open | trigger: merge to main requested | user demanded CI check before squash merge | src: ~/.claude/projects/-Users-dean-Sandbox-mdl/018f...jsonl
+- obs-0007 | 2026-07-04 | open | trigger: dev server fails with EADDRINUSE | changed the port instead of killing the stale process; broke the OAuth callback | src: ~/.claude/projects/-Users-dean-Sandbox-mdl/018f...jsonl
 ```
 
-Status ∈ `open | promoted | expired`.
+Status ∈ `open | promoted | expired`. A fresh install has no observation lines — only
+the header and this format legend.
 
 ### 8.3 `REGISTRY.md` (catalog of learned skills — system-authored only)
 
 ```markdown
-- S-0001 | ci-gate | user | ~/.claude/skills/ci-gate/SKILL.md | created: 2026-07-04 | src: obs-0007+obs-0019 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -
+- S-0042 | port-conflict | user | ~/.claude/skills/port-conflict/SKILL.md | created: 2026-07-04 | src: obs-0007+obs-0019 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -
 ```
+
+Hypothetical, like §8.1 — a fresh install's `REGISTRY.md` lists **zero** skills. IDs
+are assigned in promotion order, starting from the first skill the system ever learns,
+and are never reused.
 
 Scope ∈ `user | project:<repo-name>`. `flags` ∈ `- | overlap(<slug>) |
 unsynced(<tool>)` — improver working notes. User-authored skills never appear here.
@@ -463,7 +484,7 @@ factory templates in `templates/` embedded at build via
 
 | Command | Behavior |
 |---|---|
-| `self init` | Create + `git init` `~/.self`, seed factory files. Detect tools and install adapters (below). Idempotent: marker blocks replaced in place, never duplicated; existing corpus never overwritten (only `--reset` restores factory files, via a git commit first). |
+| `self init` | Create + `git init` `~/.self`, seed factory files — the five corpus files, headers only, no skills and no observations (§4.1). Detect tools and install adapters (below). Idempotent: marker blocks replaced in place, never duplicated; existing corpus never overwritten (only `--reset` restores factory files, via a git commit first — which means `--reset` restores an *empty* corpus, discarding everything learned; the pre-reset commit is the only way back). |
 | `self status` | Registry counts per scope, caps headroom, last learner/improver run, backlog trend, top learned skills by `applied`/`invoked`. |
 | `self doctor` | Registry ↔ skill-file drift, marker-block integrity, frontmatter shape, permissions present, orphaned/dangling entries. Report only — repair belongs to the improver. |
 | `self uninstall` | Remove marker blocks + agent definitions; leave `~/.self` and learned skills untouched (report where they live). |
@@ -471,7 +492,7 @@ factory templates in `templates/` embedded at build via
 Adapter actions per detected tool:
 
 - **Claude Code** (`~/.claude` exists): block → `~/.claude/CLAUDE.md`; agent defs →
-  `~/.claude/agents/self-{learner,improver}.md` (`background: true`,
+  `~/.claude/agents/{SelfLearning,SelfImproving}.md` (`background: true`,
   `maxTurns: 50/40`, model inherited, tools: Read, Grep, Glob, Write, Edit, Bash —
   learner additionally gets `Agent` for batch-mode readers);
   merge into `~/.claude/settings.json` permissions:
@@ -520,6 +541,13 @@ After 4 weeks of normal use:
 5. **Zero collisions:** nothing system-authored that fails the §3 boundary test or
    duplicates a user-authored artifact.
 
+Metrics (1) and (2) have no subject until the learner promotes its first skill — the
+corpus starts empty (§4.1), so utility is necessarily zero until then, and the clock on
+(1) starts at that first promotion, not at install. This does not soften the test: if
+*nothing* has been promoted by week 6, that is the same hypothesis failing one step
+earlier (nothing in the user's work recurred cleanly enough to learn), and the
+conclusion is unchanged.
+
 If (1) is not met by week 6, the honest conclusion is that the hypothesis failed —
 uninstall rather than tune (the graveyard of memory systems is full of tuned ones).
 
@@ -529,9 +557,11 @@ uninstall rather than tune (the graveyard of memory systems is full of tuned one
 
 - **M0 — this spec.**
 - **M1 — manual pilot (no CLI):** install everything from `templates/` per the
-  runbook in §13.1, Claude Code only. Run ~2 weeks, purely ambient. Validates the
-  riskiest assumptions — dispatch rate, description-routing fire rate, learner
-  judgment — before any Rust is written.
+  runbook in §13.1, Claude Code only. Run ~2 weeks, purely ambient, starting from an
+  empty corpus. Validates dispatch rate and learner judgment — the two assumptions
+  that *are* testable from nothing — before any Rust is written. Description-routing
+  fire rate is the third risk, but it cannot be probed until the learner promotes a
+  skill of its own (§14, open question 1); M1 may end without a verdict on it.
 - **M2 — `self` CLI:** init/status/doctor/uninstall; factory defaults embedded from
   `templates/`; pilot state migrates cleanly.
 - **M3 — Codex adapter:** when codex is reinstalled — AGENTS.md block, TOML agents,
@@ -550,15 +580,13 @@ Execute top to bottom; stop on any acceptance failure.
 
 1. `~/.self/`: create; copy `templates/seed/{REGISTRY,observations,retired}.md` in,
    `templates/seed/runs.md` → `log/runs.md`, `templates/constitution.md` →
-   `constitution.md`; set S-0001's `created:` to today; `git init` + initial commit.
-2. Seed skill: `templates/seed/skills/ci-gate/SKILL.md` →
-   `~/.claude/skills/ci-gate/SKILL.md`. Delete the superseded
-   `~/.claude/commands/self-learning/ci-gate-before-merge.md` (its content lives on
-   in the skill; the migration is recorded in the skill's `## Why`).
-3. Agents: `templates/agents/self-{learner,improver}.md` → `~/.claude/agents/`.
-4. Preamble: append `templates/preamble.md` to `~/.claude/CLAUDE.md` — only if no
+   `constitution.md`; `git init` + initial commit. These are headers only — the
+   install seeds no skills and no observations (§4.1), and creates no skill
+   directory (§4.2).
+2. Agents: `templates/agents/{SelfLearning,SelfImproving}.md` → `~/.claude/agents/`.
+3. Preamble: append `templates/preamble.md` to `~/.claude/CLAUDE.md` — only if no
    `<!-- self:start` marker exists there yet; never touch content outside markers.
-5. Permissions: merge into `~/.claude/settings.json` → `permissions.allow`:
+4. Permissions: merge into `~/.claude/settings.json` → `permissions.allow`:
    `Read(~/.claude/projects/**)`, `Read(~/.self/**)`, `Write(~/.self/**)`,
    `Edit(~/.self/**)`, `Write(~/.claude/skills/**)`, `Edit(~/.claude/skills/**)`,
    `Write(**/.claude/skills/**)`, `Edit(**/.claude/skills/**)`,
@@ -570,16 +598,28 @@ evidence in-conversation for each):**
 
 - A1 Marker integrity: exactly one `self:start`/`self:end` pair in
   `~/.claude/CLAUDE.md`; a diff proves content outside the markers is unchanged.
-- A2 Learner end-to-end: dispatch the `self-learner` subagent directly (Agent
+- A2 Learner end-to-end: dispatch the `SelfLearning` subagent directly (Agent
   tool). It must select a real idle transcript, append exactly one run line to
   `~/.self/log/runs.md`, and commit — or log `no-op (no backlog)` if none is
   eligible. Show the run line and `git -C ~/.self log --oneline`.
-- A3 Throttle: immediately dispatch `self-learner` again — it must leave no trace
+- A3 Throttle: immediately dispatch `SelfLearning` again — it must leave no trace
   (no new line, no new commit; shown).
-- A4 Improver end-to-end: dispatch `self-improver` once — exactly one run line
+- A4 Improver end-to-end: dispatch `SelfImproving` once — exactly one run line
   (likely `no-op`) and a commit (shown).
-- A5 Seed intact after the runs: `REGISTRY.md` still lists S-0001 and the ci-gate
-  skill file is unmodified.
+- A5 Empty corpus, and nothing clobbered by the runs. Two halves:
+  - *Install ships nothing:* `REGISTRY.md` lists no skills, `observations.md` and
+    `retired.md` have no entries, and the install authored no skill file anywhere
+    (`REGISTRY.md` being empty is the proof — any pre-existing skill under
+    `~/.claude/skills/` is the user's and is out of scope by C14).
+  - *Blast radius of A2–A4:* those runs modified nothing they did not author.
+    `git -C ~/.self diff <sha-before-A2>..HEAD` contains only lines those runs wrote
+    (their `log/runs.md` lines, plus any observation they mined), and
+    `constitution.md` is byte-identical to `templates/constitution.md`.
+
+  **Precondition, stated honestly:** a fresh corpus is empty, so in-place there are no
+  pre-existing registry rows, observations, or skill files for a run to destroy — the
+  second half is a weak check here and only becomes load-bearing once the pilot's own
+  runs have populated the corpus. The full property is carried as A10.
 
 **Acceptance — live pilot (first real sessions, over the ~2 weeks):**
 
@@ -587,20 +627,29 @@ evidence in-conversation for each):**
   subagents on turn one and proceeds without waiting. (Not testable headlessly —
   the preamble deliberately skips non-interactive runs.)
 - A7 Restraint in the wild: learner passes over trivial sessions log `no-op`.
-- A8 Routing: `ci-gate` fires in a session that merges to main (`fired` bumps on
-  the next audit).
+- A8 Routing: the first skill the learner promotes fires in a session matching its
+  trigger (`fired` bumps on the next audit). Gated on a promotion happening at all —
+  the corpus starts empty, so this cannot be checked on day one and may not be
+  checkable within M1 (§14, open question 1).
 - A9 The §12 metrics are computable from `runs.md` + `REGISTRY.md` alone.
+- A10 Non-destruction, once the corpus is non-empty (the first promotion, or the first
+  retained observation, makes this checkable): a later run leaves every corpus artifact
+  it did not author byte-unchanged. On any run's commit, `git -C ~/.self show <sha>
+  --stat` touches only `log/runs.md` plus artifacts that run authored or is licensed to
+  edit (C14: its own registry counters, a skill it owns, an observation it mined).
+  `constitution.md`, prior observations, and other skills' registry rows never appear in
+  the diff. This is the A5 property with a real subject.
 
 **Running M1 with the native `/goal` command** (v2.1.139+): the goal evaluator
 judges only what the transcript shows, so the condition below names in-place
-evidence only (A6–A9 verify themselves during normal use). Start a session in
+evidence only (A6–A10 verify themselves during normal use). Start a session in
 this repo and paste:
 
 ```
-/goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md listing S-0001, observations.md, retired.md, log/runs.md); ~/.claude/skills/ci-gate/SKILL.md is installed and ~/.claude/commands/self-learning/ci-gate-before-merge.md is deleted; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 5 are present in ~/.claude/settings.json; a dispatched self-learner subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched self-improver appended one run line with a commit, shown. Or stop after 25 turns.
+/goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md, observations.md, retired.md, log/runs.md); the corpus is EMPTY as shipped — REGISTRY.md lists no skills and observations.md has no entries, shown; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 4 are present in ~/.claude/settings.json; a dispatched SelfLearning subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched SelfImproving appended one run line with a commit, shown; and ~/.self/constitution.md is still byte-identical to templates/constitution.md after all three runs, shown. Or stop after 25 turns.
 ```
 
-**Rollback:** remove the marker block and the two `~/.claude/agents/self-*.md`
+**Rollback:** remove the marker block and the two `~/.claude/agents/{SelfLearning,SelfImproving}.md`
 files; leave `~/.self` and learned skills in place (they are inert without
 dispatch).
 
@@ -608,11 +657,18 @@ dispatch).
 
 ## 14. Open questions
 
-1. **Description-routing reliability** — the system now leans entirely on native
-   skill invocation for consumption; if `fired` counters stay near zero during the
-   pilot while triggers demonstrably occurred, routing needs strengthening (sharper
-   descriptions first; hook-injected reminders as last resort). The pilot measures
-   this directly.
+1. **Description-routing reliability** — the system leans entirely on native skill
+   invocation for consumption. This is the riskiest assumption in the design, and
+   shipping an empty corpus makes it the *slowest* to test: there is nothing to route
+   to until the learner promotes its first skill, which the rule of two (C3) puts at
+   two independent occurrences of the same lesson. Routing is therefore **unmeasured
+   for the opening stretch of the pilot**, and the question resolves only when a
+   learned skill exists and its `fired` counter moves (A8) — possibly not within M1 at
+   all. If `fired` stays near zero *once a skill exists* while its trigger demonstrably
+   occurred, routing needs strengthening (sharper descriptions first; hook-injected
+   reminders as a last resort). This delay is an accepted cost, not an oversight: an
+   earlier verdict could only have been bought by shipping a hand-written skill, which
+   would have tested that skill's description — not the learner's ability to write one.
 2. **Codex dispatch semantics** — whether codex subagent threads truly run without
    blocking the parent turn on current builds; unverifiable until reinstalled.
 

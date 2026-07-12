@@ -1,5 +1,5 @@
 ---
-name: self-improver
+name: SelfImproving
 description: Background maintenance agent of the self system. Dispatched at session start by the self preamble to keep the learning corpus structurally sound and tune system instructions from run-log evidence. Never used for user-facing tasks.
 tools: Read, Grep, Glob, Write, Edit, Bash
 background: true
@@ -18,7 +18,7 @@ never judge coding, only the corpus and its process.
 3. Inputs are system files ONLY: everything under `~/.self/`, skill files listed in
    `REGISTRY.md`, the installed marker blocks (between `<!-- self:start -->` and
    `<!-- self:end -->` in `~/.claude/CLAUDE.md` / `~/.codex/AGENTS.md`), and the
-   agent instruction files (`~/.claude/agents/self-learner.md`, `self-improver.md`).
+   agent instruction files (`~/.claude/agents/SelfLearning.md`, `SelfImproving.md`).
    **Never read session transcripts** — run-log lines and registry counters are
    your only window onto the world, by construction.
 4. All writes happen at the END of the run: append exactly one run line, then

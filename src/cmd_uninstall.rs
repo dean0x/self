@@ -36,7 +36,7 @@ pub fn run() -> Result<()> {
 
     // ── 2. Delete agent definition files ──
     let agents_dir = claude_dir.join("agents");
-    for agent in &["self-learner.md", "self-improver.md"] {
+    for agent in &["SelfLearning.md", "SelfImproving.md"] {
         let p = agents_dir.join(agent);
         if p.exists() {
             fs::remove_file(&p)?;

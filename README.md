@@ -14,8 +14,8 @@ substance is in **[spec.md](spec.md)**; read that first.
   CLI at build):
   - `preamble.md` — marker block installed into `~/.claude/CLAUDE.md` (M3: `~/.codex/AGENTS.md`)
   - `constitution.md` — invariants, installed to `~/.self/constitution.md`
-  - `agents/` — background agent definitions (`self-learner`, `self-improver`)
-  - `seed/` — initial `~/.self` corpus, including the `ci-gate` seed skill (S-0001)
+  - `agents/` — background agent definitions (`SelfLearning`, `SelfImproving`)
+  - `seed/` — the initial `~/.self` corpus skeleton (headers only; the system ships no pre-seeded skills)
 
 The installed instance lives at `~/.self` (git-tracked, agent-owned) — never
 inside this repo. Build with `cargo build --release`; the binary is

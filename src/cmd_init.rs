@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use crate::corpus;
 use crate::error::{Error, Result};
 use crate::markers;
 use crate::paths;
@@ -11,7 +10,6 @@ use crate::templates;
 
 pub fn run(reset: bool) -> Result<()> {
     let home = paths::home()?;
-    let today = corpus::today_string();
 
     let self_dir = paths::self_dir(&home);
     let log_dir = self_dir.join("log");
@@ -45,10 +43,9 @@ pub fn run(reset: bool) -> Result<()> {
     }
 
     // Seed (or overwrite for --reset) corpus files.
-    let registry_content = corpus::seed_registry(templates::REGISTRY, &today);
     let corpus_files: &[(&str, &str)] = &[
         ("constitution.md", templates::CONSTITUTION),
-        ("REGISTRY.md", &registry_content),
+        ("REGISTRY.md", templates::REGISTRY),
         ("observations.md", templates::OBSERVATIONS),
         ("retired.md", templates::RETIRED),
         ("log/runs.md", templates::RUNS),
@@ -144,31 +141,17 @@ fn apply_claude_adapter(home: &Path, claude_dir: &Path, reset: bool) -> Result<(
         fs::create_dir_all(&agents_dir)?;
     }
     write_agent_file(
-        &agents_dir.join("self-learner.md"),
-        templates::SELF_LEARNER,
+        &agents_dir.join("SelfLearning.md"),
+        templates::SELF_LEARNING,
         reset,
     )?;
     write_agent_file(
-        &agents_dir.join("self-improver.md"),
-        templates::SELF_IMPROVER,
+        &agents_dir.join("SelfImproving.md"),
+        templates::SELF_IMPROVING,
         reset,
     )?;
 
-    // ── c. Seed ci-gate skill ──
-    let skills_dir = claude_dir.join("skills").join("ci-gate");
-    if !skills_dir.exists() {
-        fs::create_dir_all(&skills_dir)?;
-    }
-    let skill_path = skills_dir.join("SKILL.md");
-    if reset || !skill_path.exists() {
-        fs::write(&skill_path, templates::CI_GATE_SKILL)?;
-        let action = if reset { "replaced" } else { "seeded" };
-        println!("{action}: ~/.claude/skills/ci-gate/SKILL.md");
-    } else {
-        println!("kept (exists): ~/.claude/skills/ci-gate/SKILL.md");
-    }
-
-    // ── d. settings.json permissions merge ──
+    // ── c. settings.json permissions merge ──
     let settings_path = claude_dir.join("settings.json");
     apply_settings(&settings_path, home)?;
 

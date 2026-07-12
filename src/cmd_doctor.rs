@@ -133,7 +133,7 @@ pub fn run() -> Result<()> {
 
     // ── 3. Agent definition files ──
     let agents_dir = claude_dir.join("agents");
-    for agent in &["self-learner.md", "self-improver.md"] {
+    for agent in &["SelfLearning.md", "SelfImproving.md"] {
         let p = agents_dir.join(agent);
         if !p.exists() {
             findings.push(format!(
@@ -280,5 +280,112 @@ fn check_frontmatter(content: &str) -> FrontmatterCheck {
     let word_count = value.split_whitespace().count();
     FrontmatterCheck::Ok {
         description_words: word_count,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    // ── check_frontmatter ────────────────────────────────────────────────────
+
+    #[test]
+    fn frontmatter_ok_minimal() {
+        let content = "---\nname: tidy-imports\ndescription: removes unused imports\n---\n\nbody\n";
+        match check_frontmatter(content) {
+            FrontmatterCheck::Ok { description_words } => assert_eq!(description_words, 3),
+            other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn frontmatter_missing_name() {
+        let content = "---\ndescription: removes unused imports\n---\n\nbody\n";
+        assert!(matches!(
+            check_frontmatter(content),
+            FrontmatterCheck::MissingName
+        ));
+    }
+
+    #[test]
+    fn frontmatter_missing_description() {
+        let content = "---\nname: tidy-imports\n---\n\nbody\n";
+        assert!(matches!(
+            check_frontmatter(content),
+            FrontmatterCheck::MissingDescription
+        ));
+    }
+
+    #[test]
+    fn frontmatter_no_frontmatter() {
+        let content = "no frontmatter here\nname: tidy-imports\n";
+        assert!(matches!(
+            check_frontmatter(content),
+            FrontmatterCheck::NoFrontmatter
+        ));
+    }
+
+    #[test]
+    fn frontmatter_long_description_exceeds_cap() {
+        // 26 words — should parse as Ok with a high count so the caller can warn.
+        let words = "one two three four five six seven eight nine ten \
+                     eleven twelve thirteen fourteen fifteen sixteen seventeen \
+                     eighteen nineteen twenty twenty-one twenty-two twenty-three \
+                     twenty-four twenty-five twenty-six";
+        let content = format!("---\nname: verbose\ndescription: {words}\n---\n");
+        match check_frontmatter(&content) {
+            FrontmatterCheck::Ok { description_words } => {
+                assert!(
+                    description_words > 25,
+                    "expected > 25 words, got {description_words}"
+                );
+            }
+            other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    // ── check_scope_vs_path ──────────────────────────────────────────────────
+
+    #[test]
+    fn scope_user_path_under_claude_skills_is_ok() {
+        let home = PathBuf::from("/home/user");
+        let path = home.join(".claude/skills/tidy-imports/SKILL.md");
+        assert!(check_scope_vs_path("user", &path, &home));
+    }
+
+    #[test]
+    fn scope_user_path_under_agents_skills_is_ok() {
+        let home = PathBuf::from("/home/user");
+        let path = home.join(".agents/skills/tidy-imports/SKILL.md");
+        assert!(check_scope_vs_path("user", &path, &home));
+    }
+
+    #[test]
+    fn scope_user_path_outside_user_dirs_is_mismatch() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/some/project/.claude/skills/tidy-imports/SKILL.md");
+        assert!(!check_scope_vs_path("user", &path, &home));
+    }
+
+    #[test]
+    fn scope_project_path_not_in_user_dirs_is_ok() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/some/project/.claude/skills/tidy-imports/SKILL.md");
+        assert!(check_scope_vs_path("project:some-project", &path, &home));
+    }
+
+    #[test]
+    fn scope_project_path_in_user_claude_dir_is_mismatch() {
+        let home = PathBuf::from("/home/user");
+        let path = home.join(".claude/skills/tidy-imports/SKILL.md");
+        assert!(!check_scope_vs_path("project:some-project", &path, &home));
+    }
+
+    #[test]
+    fn scope_unknown_passes_without_false_positive() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/anywhere/SKILL.md");
+        assert!(check_scope_vs_path("unknown-scope", &path, &home));
     }
 }

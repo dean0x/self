@@ -128,11 +128,14 @@ fn fresh_init_seeds_everything_and_one_commit() {
     }
 
     // Agent definitions.
-    assert!(home.join(".claude/agents/self-learner.md").exists());
-    assert!(home.join(".claude/agents/self-improver.md").exists());
+    assert!(home.join(".claude/agents/SelfLearning.md").exists());
+    assert!(home.join(".claude/agents/SelfImproving.md").exists());
 
-    // ci-gate skill.
-    assert!(home.join(".claude/skills/ci-gate/SKILL.md").exists());
+    // No skills are seeded — the corpus ships empty.
+    assert!(
+        !home.join(".claude/skills").exists(),
+        "skills dir must not be created by a clean init"
+    );
 
     // CLAUDE.md has exactly one marker pair.
     let claude_md = read_file(&home, ".claude/CLAUDE.md");
@@ -161,12 +164,17 @@ fn fresh_init_seeds_everything_and_one_commit() {
         allow.len()
     );
 
-    // REGISTRY.md has today's date (not the template date 2026-07-05).
+    // REGISTRY.md ships with no skill entries (empty corpus contract).
     let registry = read_file(&home, ".self/REGISTRY.md");
-    // The template date is the old one; after seeding it should have been replaced.
     assert!(
-        registry.contains("created: "),
-        "created: field missing from registry"
+        !registry.contains("- S-"),
+        "registry must list no skills after a fresh init; got:\n{registry}"
+    );
+    // observations.md ships with no entries.
+    let obs = read_file(&home, ".self/observations.md");
+    assert!(
+        !obs.contains("- obs-"),
+        "observations must be empty after a fresh init; got:\n{obs}"
     );
 
     // Git log shows exactly one commit.
@@ -222,8 +230,7 @@ fn second_init_is_idempotent() {
     assert_eq!(obs_after, mutated, "corpus mutation was overwritten");
 }
 
-/// `self uninstall` removes the marker block and agent files but leaves ~/.self
-/// and the ci-gate skill.
+/// `self uninstall` removes the marker block and agent files but leaves ~/.self.
 #[test]
 fn uninstall_removes_block_and_agents_leaves_self() {
     let home = make_home();
@@ -253,15 +260,12 @@ fn uninstall_removes_block_and_agents_leaves_self() {
     );
 
     // Agent files deleted.
-    assert!(!home.join(".claude/agents/self-learner.md").exists());
-    assert!(!home.join(".claude/agents/self-improver.md").exists());
+    assert!(!home.join(".claude/agents/SelfLearning.md").exists());
+    assert!(!home.join(".claude/agents/SelfImproving.md").exists());
 
     // ~/.self untouched.
     assert!(home.join(".self").exists(), "~/.self was removed");
     assert!(home.join(".self/REGISTRY.md").exists());
-
-    // ci-gate skill untouched.
-    assert!(home.join(".claude/skills/ci-gate/SKILL.md").exists());
 
     // Output mentions ~/.self location.
     assert!(
@@ -270,8 +274,8 @@ fn uninstall_removes_block_and_agents_leaves_self() {
     );
 }
 
-/// `self doctor` exits 0 when the installation is clean, then 1 after the
-/// ci-gate skill file is deleted (dangling registry entry).
+/// `self doctor` exits 0 on a clean install (empty corpus), then exits 1 when
+/// a registry entry points at a skill file that does not exist (drift detection).
 #[test]
 fn doctor_clean_then_finds_dangling_skill() {
     let home = make_home();
@@ -280,7 +284,7 @@ fn doctor_clean_then_finds_dangling_skill() {
     let (_, _, code) = run_cmd(&home, &["init"]);
     assert_eq!(code, 0);
 
-    // Doctor on clean install should exit 0.
+    // Doctor on a clean install with an empty corpus exits 0.
     let (out, err, code) = run_cmd(&home, &["doctor"]);
     assert_eq!(
         code, 0,
@@ -288,15 +292,117 @@ fn doctor_clean_then_finds_dangling_skill() {
     );
     assert!(out.contains("clean"), "expected 'clean' in doctor output");
 
-    // Remove the skill file.
-    fs::remove_file(home.join(".claude/skills/ci-gate/SKILL.md")).unwrap();
+    // Inject a synthetic registry entry whose skill file does NOT exist —
+    // this simulates the registry/file drift that doctor is designed to detect.
+    let synthetic_skill_path = home.join(".claude/skills/test-skill/SKILL.md");
+    let registry_path = home.join(".self/REGISTRY.md");
+    let registry_line = format!(
+        "- S-0099 | test-skill | user | {} | created: 2026-01-01 | src: obs-9999 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -\n",
+        synthetic_skill_path.display()
+    );
+    let mut registry_content = fs::read_to_string(&registry_path).unwrap();
+    registry_content.push_str(&registry_line);
+    fs::write(&registry_path, &registry_content).unwrap();
 
-    // Doctor should now exit 1.
+    // Doctor should now exit 1 — the registry entry is dangling.
     let (out, _, code) = run_cmd(&home, &["doctor"]);
-    assert_eq!(code, 1, "doctor should exit 1 after skill deleted");
+    assert_eq!(code, 1, "doctor should exit 1 with dangling registry entry");
     assert!(
-        out.contains("dangling") || out.contains("FIND"),
+        out.contains("dangling"),
         "expected dangling finding in doctor output: {out}"
+    );
+}
+
+/// `self doctor` exercises check_scope_vs_path and check_frontmatter:
+///  - a skill with valid frontmatter at the right scope path → stays clean
+///  - a skill with missing 'name:' → FIND reported
+///  - a skill registered as 'user' scope but stored outside ~/.claude/skills/ → scope mismatch
+#[test]
+fn doctor_checks_frontmatter_and_scope() {
+    let home = make_home();
+    seed_fake_claude(&home);
+
+    let (_, _, code) = run_cmd(&home, &["init"]);
+    assert_eq!(code, 0);
+
+    let registry_path = home.join(".self/REGISTRY.md");
+
+    // ── Phase 1: valid skill → doctor remains clean ──────────────────────────
+    let valid_skill_path = home.join(".claude/skills/tidy-imports/SKILL.md");
+    fs::create_dir_all(valid_skill_path.parent().unwrap()).unwrap();
+    fs::write(
+        &valid_skill_path,
+        "---\nname: tidy-imports\ndescription: removes unused import statements\n---\n\nbody\n",
+    )
+    .unwrap();
+    let mut registry = fs::read_to_string(&registry_path).unwrap();
+    registry.push_str(&format!(
+        "- S-0042 | tidy-imports | user | {} | created: 2026-01-01 | src: obs-0001 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -\n",
+        valid_skill_path.display()
+    ));
+    fs::write(&registry_path, &registry).unwrap();
+
+    let (out, _, code) = run_cmd(&home, &["doctor"]);
+    assert_eq!(
+        code, 0,
+        "doctor should be clean with a valid skill entry: {out}"
+    );
+
+    // ── Phase 2: skill missing 'name:' → FIND for MissingName ───────────────
+    let bad_fm_path = home.join(".claude/skills/no-name/SKILL.md");
+    fs::create_dir_all(bad_fm_path.parent().unwrap()).unwrap();
+    fs::write(
+        &bad_fm_path,
+        "---\ndescription: has description but no name field\n---\n\nbody\n",
+    )
+    .unwrap();
+    let mut registry = fs::read_to_string(&registry_path).unwrap();
+    registry.push_str(&format!(
+        "- S-0043 | no-name | user | {} | created: 2026-01-01 | src: obs-0002 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -\n",
+        bad_fm_path.display()
+    ));
+    fs::write(&registry_path, &registry).unwrap();
+
+    let (out, _, code) = run_cmd(&home, &["doctor"]);
+    assert_eq!(
+        code, 1,
+        "doctor should find missing 'name:' in frontmatter: {out}"
+    );
+    assert!(
+        out.contains("missing 'name:'"),
+        "expected missing-name finding in doctor output: {out}"
+    );
+
+    // Remove the bad entry so phase 3 is independent.
+    let registry = fs::read_to_string(&registry_path).unwrap();
+    let registry: String = registry
+        .lines()
+        .filter(|l| !l.contains("S-0043"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    fs::write(&registry_path, &registry).unwrap();
+    fs::remove_file(&bad_fm_path).unwrap();
+
+    // ── Phase 3: 'user' scope but path outside ~/.claude/skills/ → mismatch ─
+    let misplaced_path = home.join("some-other-dir/odd-skill/SKILL.md");
+    fs::create_dir_all(misplaced_path.parent().unwrap()).unwrap();
+    fs::write(
+        &misplaced_path,
+        "---\nname: odd-skill\ndescription: correctly formed but stored in wrong location\n---\n\nbody\n",
+    )
+    .unwrap();
+    let mut registry = fs::read_to_string(&registry_path).unwrap();
+    registry.push_str(&format!(
+        "- S-0044 | odd-skill | user | {} | created: 2026-01-01 | src: obs-0003 | fired: 0 applied: 0 contradicted: 0 invoked: 0 refined: 0 | flags: -\n",
+        misplaced_path.display()
+    ));
+    fs::write(&registry_path, &registry).unwrap();
+
+    let (out, _, code) = run_cmd(&home, &["doctor"]);
+    assert_eq!(code, 1, "doctor should find scope mismatch: {out}");
+    assert!(
+        out.contains("scope mismatch"),
+        "expected scope-mismatch finding in doctor output: {out}"
     );
 }
 
@@ -317,7 +423,7 @@ fn reset_produces_two_extra_commits_and_restores_factory() {
     fs::write(&const_path, "MUTATED\n").unwrap();
 
     // Mutate an agent def so we can verify it's reset too.
-    let learner_path = home.join(".claude/agents/self-learner.md");
+    let learner_path = home.join(".claude/agents/SelfLearning.md");
     fs::write(&learner_path, "MUTATED AGENT\n").unwrap();
 
     // --reset (2 more commits: pre-reset snapshot + factory reset).
@@ -339,14 +445,14 @@ fn reset_produces_two_extra_commits_and_restores_factory() {
     );
 
     // Agent definition restored.
-    let learner = read_file(&home, ".claude/agents/self-learner.md");
+    let learner = read_file(&home, ".claude/agents/SelfLearning.md");
     assert!(
         !learner.contains("MUTATED AGENT"),
-        "self-learner.md not restored by --reset"
+        "SelfLearning.md not restored by --reset"
     );
     assert!(
-        learner.contains("self-learner"),
-        "self-learner.md doesn't look like factory content"
+        learner.contains("SelfLearning"),
+        "SelfLearning.md doesn't look like factory content"
     );
 
     // CLAUDE.md block is still valid (exactly one pair).
@@ -376,7 +482,8 @@ fn unknown_command_exits_2() {
     assert_eq!(code, 2);
 }
 
-/// `self status` succeeds on a freshly-initialized install.
+/// `self status` renders skill counter table and top-3 ranking when the registry
+/// is non-empty.
 #[test]
 fn status_after_init() {
     let home = make_home();
@@ -385,11 +492,39 @@ fn status_after_init() {
     let (_, _, code) = run_cmd(&home, &["init"]);
     assert_eq!(code, 0);
 
+    // Inject a synthetic skill so the per-skill table loop and top-3 ranking run.
+    let skill_path = home.join(".claude/skills/tidy-imports/SKILL.md");
+    fs::create_dir_all(skill_path.parent().unwrap()).unwrap();
+    fs::write(
+        &skill_path,
+        "---\nname: tidy-imports\ndescription: removes unused import statements\n---\n\nbody\n",
+    )
+    .unwrap();
+    let registry_path = home.join(".self/REGISTRY.md");
+    let registry_line = format!(
+        "- S-0042 | tidy-imports | user | {} | created: 2026-01-01 | src: obs-0001 | fired: 3 applied: 2 contradicted: 0 invoked: 1 refined: 0 | flags: -\n",
+        skill_path.display()
+    );
+    let mut registry = fs::read_to_string(&registry_path).unwrap();
+    registry.push_str(&registry_line);
+    fs::write(&registry_path, registry).unwrap();
+
     let (out, err, code) = run_cmd(&home, &["status"]);
     assert_eq!(code, 0, "status failed\nstdout: {out}\nstderr: {err}");
+    // Static header always present.
     assert!(
         out.contains("user"),
-        "expected 'user' scope in status output"
+        "expected 'user' scope in status output: {out}"
+    );
+    // Per-skill counter row is rendered (the table loop body ran).
+    assert!(
+        out.contains("tidy-imports"),
+        "expected skill slug in status counter table: {out}"
+    );
+    // Top-3 ranking section shows the skill (the entries.iter().take(3) path ran).
+    assert!(
+        out.contains("applied=") && out.contains("invoked="),
+        "expected top-skills ranking in status output: {out}"
     );
 }
 
@@ -486,8 +621,8 @@ fn reinit_after_uninstall() {
     assert_eq!(claude_md.matches("<!-- self:end -->").count(), 1);
 
     // Agent files restored.
-    assert!(home.join(".claude/agents/self-learner.md").exists());
-    assert!(home.join(".claude/agents/self-improver.md").exists());
+    assert!(home.join(".claude/agents/SelfLearning.md").exists());
+    assert!(home.join(".claude/agents/SelfImproving.md").exists());
 }
 
 /// The settings.json pre-existing deny rule and allow rule are preserved after init.
