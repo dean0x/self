@@ -218,17 +218,44 @@ fn apply_codex_adapter(home: &Path) {
         println!("codex: skipped (not installed)");
         return;
     }
-    // Check for a `codex` binary on PATH.
-    let codex_present = Command::new("sh")
-        .args(["-c", "command -v codex"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    // Check for a `codex` binary on PATH. Shell-free so it works on Windows,
+    // where `sh` and `command -v` are unavailable (the old `sh -c` probe always
+    // reported "not installed" there, even when codex was present).
+    let codex_present = on_path("codex");
     if codex_present {
         println!("codex: detected but adapter is M3 — skipped");
     } else {
         println!("codex: skipped (not installed)");
     }
+}
+
+/// Return true if an executable named `name` is discoverable on `PATH`.
+///
+/// A shell-free, cross-platform replacement for `sh -c "command -v <name>"`,
+/// which does not exist on Windows. [`std::env::split_paths`] applies the
+/// correct separator per OS (`:` on Unix, `;` on Windows); on Windows we also
+/// try each `PATHEXT` extension so a bare name like `codex` matches
+/// `codex.exe` / `codex.cmd`.
+fn on_path(name: &str) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+
+    #[cfg(windows)]
+    let candidates: Vec<String> = {
+        let exts = std::env::var("PATHEXT").unwrap_or_else(|_| ".EXE;.CMD;.BAT;.COM".to_owned());
+        std::iter::once(name.to_owned())
+            .chain(
+                exts.split(';')
+                    .filter(|ext| !ext.is_empty())
+                    .map(|ext| format!("{name}{ext}")),
+            )
+            .collect()
+    };
+    #[cfg(not(windows))]
+    let candidates = [name.to_owned()];
+
+    std::env::split_paths(&path).any(|dir| candidates.iter().any(|c| dir.join(c).is_file()))
 }
 
 // ── git helpers ──

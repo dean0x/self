@@ -12,6 +12,10 @@ substance is in **[spec.md](spec.md)**; read that first.
 > **Not yet published.** v0.1.0 has not been tagged or released to any registry.
 > The commands below will be valid once the first release ships (see [RELEASING.md](RELEASING.md)).
 
+> **Requires `git`.** `self init` creates and commits to a git repository at
+> `~/.self`, so `git` must be installed and on your `PATH`. On Windows, install
+> [Git for Windows](https://git-scm.com/download/win).
+
 Three channels — pick one, then run `self init`:
 
 - **npm** (recommended — Windows, macOS, Linux; no Rust toolchain needed):

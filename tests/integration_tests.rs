@@ -55,15 +55,37 @@ fn seed_fake_claude(home: &Path) {
     .unwrap();
 }
 
+/// Apply hermetic-but-portable environment isolation to a spawned command:
+/// wipe the inherited environment, then restore only the OS essentials the
+/// child needs to locate and run `git` on every platform.
+///
+/// The harness previously hardcoded `PATH=/usr/bin:/bin`, a Unix-only path.
+/// On Windows the spawned `self` process could then not locate `git.exe`
+/// (installed under `C:\Program Files\Git\cmd`, never on a Unix PATH), so its
+/// internal `Command::new("git")` failed with "program not found". Propagating
+/// the parent's real PATH keeps the child hermetic — callers still override
+/// HOME and the git identity — while letting `git` resolve on Linux, macOS,
+/// and Windows alike. (`bin()` is an absolute path, so isolation never relied
+/// on PATH to select the binary under test.)
+fn isolate_env(cmd: &mut Command) -> &mut Command {
+    cmd.env_clear();
+    if let Some(path) = env::var_os("PATH") {
+        cmd.env("PATH", path);
+    }
+    // Git for Windows relies on SystemRoot for DLL loading and crypto init.
+    #[cfg(windows)]
+    if let Some(root) = env::var_os("SystemRoot") {
+        cmd.env("SystemRoot", root);
+    }
+    cmd
+}
+
 /// Run `self <args>` with the given HOME, returning (stdout, stderr, exit_code).
 fn run_cmd(home: &Path, args: &[&str]) -> (String, String, i32) {
-    let output = Command::new(bin())
-        .args(args)
+    let mut cmd = Command::new(bin());
+    cmd.args(args);
+    let output = isolate_env(&mut cmd)
         .env("HOME", home)
-        // Clear any inherited PATH that might point to a real `self`.
-        .env_clear()
-        .env("HOME", home)
-        .env("PATH", "/usr/bin:/bin")
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_AUTHOR_NAME", "test")
         .env("GIT_AUTHOR_EMAIL", "test@test")
@@ -533,13 +555,10 @@ fn status_after_init() {
 /// Running without HOME set results in a non-zero exit and an error message.
 #[test]
 fn missing_home_exits_with_error() {
-    // Spawn without HOME at all.
-    let output = Command::new(bin())
-        .arg("init")
-        .env_clear()
-        .env("PATH", "/usr/bin:/bin")
-        .output()
-        .expect("spawn binary");
+    // Spawn without HOME (or USERPROFILE) at all — env_clear removes both.
+    let mut cmd = Command::new(bin());
+    cmd.arg("init");
+    let output = isolate_env(&mut cmd).output().expect("spawn binary");
 
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -552,11 +571,10 @@ fn missing_home_exits_with_error() {
 /// HOME set to an empty string is treated as unset: non-zero exit + error message.
 #[test]
 fn empty_home_exits_with_error() {
-    let output = Command::new(bin())
-        .arg("init")
-        .env_clear()
+    let mut cmd = Command::new(bin());
+    cmd.arg("init");
+    let output = isolate_env(&mut cmd)
         .env("HOME", "")
-        .env("PATH", "/usr/bin:/bin")
         .output()
         .expect("spawn binary");
 

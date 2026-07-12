@@ -18,7 +18,7 @@ impl fmt::Display for Error {
             Error::Json(e) => write!(f, "JSON error: {e}"),
             Error::HomeNotSet => write!(
                 f,
-                "HOME environment variable is not set — cannot determine home directory"
+                "neither HOME nor USERPROFILE is set — cannot determine home directory"
             ),
             Error::NoSelfDir => write!(
                 f,

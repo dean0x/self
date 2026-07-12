@@ -2,13 +2,21 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
-/// Return the value of HOME, or an error if unset or empty.
+/// Resolve the user's home directory.
+///
+/// Prefers `HOME` (present on Unix, and set by Git Bash / WSL on Windows) and
+/// falls back to `USERPROFILE`, the native home variable in Windows shells
+/// (cmd.exe, PowerShell) where `HOME` is typically unset. Empty values are
+/// treated as unset. Returns [`Error::HomeNotSet`] when neither is usable.
 pub fn home() -> Result<PathBuf> {
-    let h = std::env::var("HOME").map_err(|_| Error::HomeNotSet)?;
-    if h.is_empty() {
-        return Err(Error::HomeNotSet);
+    for var in ["HOME", "USERPROFILE"] {
+        if let Some(val) = std::env::var_os(var) {
+            if !val.is_empty() {
+                return Ok(PathBuf::from(val));
+            }
+        }
     }
-    Ok(PathBuf::from(h))
+    Err(Error::HomeNotSet)
 }
 
 /// Expand a leading `~` against the given home path.
