@@ -54,9 +54,9 @@ check ──▶ build (5 native runners) ──┬──▶ github-release
    and **fails loudly** on any mismatch, then runs the full gate suite once
    (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --locked`, `cargo build --release --locked`). Nothing is published if this fails.
-2. **build** (`contents: read`) — five native runner/target pairs, no cross-compilation:
+2. **build** (`contents: read`) — five runner/target pairs:
    `x86_64-unknown-linux-gnu` (ubuntu-latest), `aarch64-unknown-linux-gnu` (ubuntu-24.04-arm),
-   `x86_64-apple-darwin` (macos-13), `aarch64-apple-darwin` (macos-latest),
+   `x86_64-apple-darwin` (macos-latest, cross-compiled from arm64), `aarch64-apple-darwin` (macos-latest),
    `x86_64-pc-windows-msvc` (windows-latest). Each produces
    `self-v<ver>-<target>.tar.gz` (`.zip` on Windows) + a `.sha256`, and uploads the raw
    binary separately for the npm job.

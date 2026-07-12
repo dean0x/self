@@ -84,7 +84,8 @@ jobs:
         run: cargo build --release --locked
 
   # ---------------------------------------------------------------------------
-  # 2. Build every release target on its own native runner (no cross-compile).
+  # 2. Build every release target. x86_64-apple-darwin cross-compiles from
+  #    macos-latest (arm64); all other legs use native runners.
   # ---------------------------------------------------------------------------
   build:
     name: build ${{ matrix.target }}
@@ -102,7 +103,7 @@ jobs:
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             ext: ""
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             ext: ""
           - os: macos-latest

@@ -530,8 +530,8 @@ which compiles on the user's machine; nothing is fetched at install time.
 cross-references are *derived* from it. `scripts/set-version.mjs <x.y.z>` (Node,
 zero dependencies) rewrites all of them in one shot — versions are never hand-edited.
 
-**Tag-driven releases.** Pushing a `vX.Y.Z` tag triggers CI to build the five native
-binaries (one runner per target — no cross-compilation), publish the crate to
+**Tag-driven releases.** Pushing a `vX.Y.Z` tag triggers CI to build the five release
+binaries (four on native runners; `x86_64-apple-darwin` cross-compiled from `macos-latest`), publish the crate to
 crates.io and the six packages to npm (trusted publishing over OIDC — no long-lived
 tokens), and attach the binaries to the GitHub release. The operator procedure —
 prerequisites, the version bump, the tag push — lives in `RELEASING.md`.
