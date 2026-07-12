@@ -128,8 +128,8 @@ fn fresh_init_seeds_everything_and_one_commit() {
     }
 
     // Agent definitions.
-    assert!(home.join(".claude/agents/SelfLearning.md").exists());
-    assert!(home.join(".claude/agents/SelfImproving.md").exists());
+    assert!(home.join(".claude/agents/self-learning.md").exists());
+    assert!(home.join(".claude/agents/self-improvement.md").exists());
 
     // No skills are seeded — the corpus ships empty.
     assert!(
@@ -201,7 +201,9 @@ fn second_init_is_idempotent() {
     // Mutate a corpus file between the two runs.
     let obs_path = home.join(".self/observations.md");
     let original_obs = fs::read_to_string(&obs_path).unwrap();
-    let mutated = format!("{original_obs}\n- obs-9999 | 2026-01-01 | open | trigger: test | added manually | src: test\n");
+    let mutated = format!(
+        "{original_obs}\n- obs-9999 | 2026-01-01 | open | trigger: test | added manually | src: test\n"
+    );
     fs::write(&obs_path, &mutated).unwrap();
 
     // Snapshot CLAUDE.md bytes.
@@ -260,8 +262,8 @@ fn uninstall_removes_block_and_agents_leaves_self() {
     );
 
     // Agent files deleted.
-    assert!(!home.join(".claude/agents/SelfLearning.md").exists());
-    assert!(!home.join(".claude/agents/SelfImproving.md").exists());
+    assert!(!home.join(".claude/agents/self-learning.md").exists());
+    assert!(!home.join(".claude/agents/self-improvement.md").exists());
 
     // ~/.self untouched.
     assert!(home.join(".self").exists(), "~/.self was removed");
@@ -423,7 +425,7 @@ fn reset_produces_two_extra_commits_and_restores_factory() {
     fs::write(&const_path, "MUTATED\n").unwrap();
 
     // Mutate an agent def so we can verify it's reset too.
-    let learner_path = home.join(".claude/agents/SelfLearning.md");
+    let learner_path = home.join(".claude/agents/self-learning.md");
     fs::write(&learner_path, "MUTATED AGENT\n").unwrap();
 
     // --reset (2 more commits: pre-reset snapshot + factory reset).
@@ -445,14 +447,14 @@ fn reset_produces_two_extra_commits_and_restores_factory() {
     );
 
     // Agent definition restored.
-    let learner = read_file(&home, ".claude/agents/SelfLearning.md");
+    let learner = read_file(&home, ".claude/agents/self-learning.md");
     assert!(
         !learner.contains("MUTATED AGENT"),
-        "SelfLearning.md not restored by --reset"
+        "self-learning.md not restored by --reset"
     );
     assert!(
         learner.contains("SelfLearning"),
-        "SelfLearning.md doesn't look like factory content"
+        "self-learning.md doesn't look like factory content"
     );
 
     // CLAUDE.md block is still valid (exactly one pair).
@@ -621,8 +623,8 @@ fn reinit_after_uninstall() {
     assert_eq!(claude_md.matches("<!-- self:end -->").count(), 1);
 
     // Agent files restored.
-    assert!(home.join(".claude/agents/SelfLearning.md").exists());
-    assert!(home.join(".claude/agents/SelfImproving.md").exists());
+    assert!(home.join(".claude/agents/self-learning.md").exists());
+    assert!(home.join(".claude/agents/self-improvement.md").exists());
 }
 
 /// The settings.json pre-existing deny rule and allow rule are preserved after init.

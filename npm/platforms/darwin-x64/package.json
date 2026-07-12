@@ -1,0 +1,18 @@
+{
+  "name": "@dean0x/self-darwin-x64",
+  "version": "0.1.0",
+  "description": "macOS x64 binary for @dean0x/self",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dean0x/self.git"
+  },
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin"
+  ]
+}

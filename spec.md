@@ -191,7 +191,7 @@ no `claude -p`, no `codex exec`, no hooks spawning processes.
 
 | | Claude Code | Codex |
 |---|---|---|
-| Agent definition | `~/.claude/agents/SelfLearning.md`, `SelfImproving.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/SelfLearning.toml`, `SelfImproving.toml` (`name`, `description`, `developer_instructions`; model inherited) |
+| Agent definition | `~/.claude/agents/self-learning.md`, `self-improvement.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/SelfLearning.toml`, `SelfImproving.toml` (`name`, `description`, `developer_instructions`; model inherited) |
 | Launch mechanism | Agent/Task tool, background (default since v2.1.198); main conversation continues | native in-process subagent threads (`features.multi_agent`, default-on in current builds; `[agents] max_threads=6`) |
 | Trigger | preamble instruction | preamble instruction (Codex spawns subagents only when the prompt asks — same model) |
 | Lifetime | **killed if the user exits the session** | scoped to the session |
@@ -478,7 +478,7 @@ refined(slug) | retired(slug,reason) | merged | tuned(file) | repaired | blocked
 ## 10. The `self` CLI
 
 A thin, deterministic **installer** — file plumbing only, zero runtime role, zero
-judgment. Rust, single static binary (`cargo install self-cli`, brew tap later);
+judgment. Rust, single static binary, distributed via crates.io and npm (§10.1);
 factory templates in `templates/` embedded at build via
 `include_str!` (`.mds` authoring deferred until `mds` exists on the build machine). Runtime dependency count: zero (git assumed present).
 
@@ -492,7 +492,7 @@ factory templates in `templates/` embedded at build via
 Adapter actions per detected tool:
 
 - **Claude Code** (`~/.claude` exists): block → `~/.claude/CLAUDE.md`; agent defs →
-  `~/.claude/agents/{SelfLearning,SelfImproving}.md` (`background: true`,
+  `~/.claude/agents/{self-learning,self-improvement}.md` (`background: true`,
   `maxTurns: 50/40`, model inherited, tools: Read, Grep, Glob, Write, Edit, Bash —
   learner additionally gets `Agent` for batch-mode readers);
   merge into `~/.claude/settings.json` permissions:
@@ -505,6 +505,36 @@ Adapter actions per detected tool:
   version-detection (`~/.agents/skills` vs `~/.codex/skills`); verify
   `features.multi_agent` availability against the installed version before enabling
   dispatch wording.
+
+### 10.1 Distribution
+
+The binary reaches users over two registries plus raw downloads; only the crates.io
+channel needs a Rust toolchain, because it compiles from source.
+
+| Channel | Command / source | Toolchain | Platforms |
+|---|---|---|---|
+| **npm** | `npm install -g @dean0x/self` | none — prebuilt binary shipped | Windows, macOS, Linux (x64 + arm64) |
+| **crates.io** | `cargo install self-cli` | Rust — builds from source | any Rust target |
+| **GitHub Releases** | download the archive for your platform | none | the five native targets |
+
+The npm package `@dean0x/self` carries no binary itself: it declares five
+`optionalDependencies` — one per platform (`@dean0x/self-{linux,darwin}-{x64,arm64}`
+and `@dean0x/self-windows-x64`) — and npm installs only the one whose `os`/`cpu`
+matches the host. A tiny zero-dependency CommonJS shim resolves that package and execs
+its binary. Because the crate embeds `templates/**` via `include_str!` (§10), every
+channel ships the factory templates *inside* the artifact — including `cargo install`,
+which compiles on the user's machine; nothing is fetched at install time.
+
+**One version, one source of truth.** The version lives in `Cargo.toml`; the six
+`package.json` files (main package + five platform packages) and their pinned
+cross-references are *derived* from it. `scripts/set-version.mjs <x.y.z>` (Node,
+zero dependencies) rewrites all of them in one shot — versions are never hand-edited.
+
+**Tag-driven releases.** Pushing a `vX.Y.Z` tag triggers CI to build the five native
+binaries (one runner per target — no cross-compilation), publish the crate to
+crates.io and the six packages to npm (trusted publishing over OIDC — no long-lived
+tokens), and attach the binaries to the GitHub release. The operator procedure —
+prerequisites, the version bump, the tag push — lives in `RELEASING.md`.
 
 ---
 
@@ -583,7 +613,7 @@ Execute top to bottom; stop on any acceptance failure.
    `constitution.md`; `git init` + initial commit. These are headers only — the
    install seeds no skills and no observations (§4.1), and creates no skill
    directory (§4.2).
-2. Agents: `templates/agents/{SelfLearning,SelfImproving}.md` → `~/.claude/agents/`.
+2. Agents: `templates/agents/{self-learning,self-improvement}.md` → `~/.claude/agents/`.
 3. Preamble: append `templates/preamble.md` to `~/.claude/CLAUDE.md` — only if no
    `<!-- self:start` marker exists there yet; never touch content outside markers.
 4. Permissions: merge into `~/.claude/settings.json` → `permissions.allow`:
@@ -649,7 +679,7 @@ this repo and paste:
 /goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md, observations.md, retired.md, log/runs.md); the corpus is EMPTY as shipped — REGISTRY.md lists no skills and observations.md has no entries, shown; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 4 are present in ~/.claude/settings.json; a dispatched SelfLearning subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched SelfImproving appended one run line with a commit, shown; and ~/.self/constitution.md is still byte-identical to templates/constitution.md after all three runs, shown. Or stop after 25 turns.
 ```
 
-**Rollback:** remove the marker block and the two `~/.claude/agents/{SelfLearning,SelfImproving}.md`
+**Rollback:** remove the marker block and the two `~/.claude/agents/{self-learning,self-improvement}.md`
 files; leave `~/.self` and learned skills in place (they are inert without
 dispatch).
 

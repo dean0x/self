@@ -141,12 +141,12 @@ fn apply_claude_adapter(home: &Path, claude_dir: &Path, reset: bool) -> Result<(
         fs::create_dir_all(&agents_dir)?;
     }
     write_agent_file(
-        &agents_dir.join("SelfLearning.md"),
+        &agents_dir.join("self-learning.md"),
         templates::SELF_LEARNING,
         reset,
     )?;
     write_agent_file(
-        &agents_dir.join("SelfImproving.md"),
+        &agents_dir.join("self-improvement.md"),
         templates::SELF_IMPROVING,
         reset,
     )?;

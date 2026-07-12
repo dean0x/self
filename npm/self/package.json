@@ -1,0 +1,30 @@
+{
+  "name": "@dean0x/self",
+  "version": "0.1.0",
+  "description": "self — continuous learning layer for Claude Code",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dean0x/self.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "self": "bin/self.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "optionalDependencies": {
+    "@dean0x/self-linux-x64": "0.1.0",
+    "@dean0x/self-linux-arm64": "0.1.0",
+    "@dean0x/self-darwin-x64": "0.1.0",
+    "@dean0x/self-darwin-arm64": "0.1.0",
+    "@dean0x/self-windows-x64": "0.1.0"
+  }
+}

@@ -118,8 +118,8 @@ pub fn run() -> Result<()> {
                     let line_count = block.lines().count();
                     if line_count > MAX_BLOCK_LINES {
                         findings.push(format!(
-                                "CLAUDE.md marker block is {line_count} lines (C4: ≤ {MAX_BLOCK_LINES})"
-                            ));
+                            "CLAUDE.md marker block is {line_count} lines (C4: ≤ {MAX_BLOCK_LINES})"
+                        ));
                     }
                 }
                 markers::MarkerState::Malformed(msg) => {
@@ -133,7 +133,7 @@ pub fn run() -> Result<()> {
 
     // ── 3. Agent definition files ──
     let agents_dir = claude_dir.join("agents");
-    for agent in &["SelfLearning.md", "SelfImproving.md"] {
+    for agent in &["self-learning.md", "self-improvement.md"] {
         let p = agents_dir.join(agent);
         if !p.exists() {
             findings.push(format!(

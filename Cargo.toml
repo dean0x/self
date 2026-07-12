@@ -1,7 +1,21 @@
 [package]
 name = "self-cli"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
+description = "A self-learning & self-improving layer for coding agents (Claude Code, Codex)"
+license = "MIT"
+repository = "https://github.com/dean0x/self"
+readme = "README.md"
+keywords = ["claude", "agents", "ai", "memory", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+    "src/**",
+    "templates/**",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+]
 
 [[bin]]
 name = "self"

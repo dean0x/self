@@ -17,7 +17,7 @@ pub const RETIRED: &str = include_str!("../templates/seed/retired.md");
 pub const RUNS: &str = include_str!("../templates/seed/runs.md");
 
 /// Factory content for the SelfLearning agent definition.
-pub const SELF_LEARNING: &str = include_str!("../templates/agents/SelfLearning.md");
+pub const SELF_LEARNING: &str = include_str!("../templates/agents/self-learning.md");
 
 /// Factory content for the SelfImproving agent definition.
-pub const SELF_IMPROVING: &str = include_str!("../templates/agents/SelfImproving.md");
+pub const SELF_IMPROVING: &str = include_str!("../templates/agents/self-improvement.md");

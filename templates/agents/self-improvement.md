@@ -18,7 +18,7 @@ never judge coding, only the corpus and its process.
 3. Inputs are system files ONLY: everything under `~/.self/`, skill files listed in
    `REGISTRY.md`, the installed marker blocks (between `<!-- self:start -->` and
    `<!-- self:end -->` in `~/.claude/CLAUDE.md` / `~/.codex/AGENTS.md`), and the
-   agent instruction files (`~/.claude/agents/SelfLearning.md`, `SelfImproving.md`).
+   agent instruction files (`~/.claude/agents/self-learning.md`, `self-improvement.md`).
    **Never read session transcripts** — run-log lines and registry counters are
    your only window onto the world, by construction.
 4. All writes happen at the END of the run: append exactly one run line, then
