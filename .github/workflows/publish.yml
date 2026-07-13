@@ -1,0 +1,280 @@
+name: Publish (bootstrap)
+
+# One-shot, CI-only registry bootstrap.
+#
+# OIDC trusted publishing cannot create a package that has never existed on npm or
+# crates.io, so the FIRST publish of every package must run with a token. This
+# dispatchable workflow does exactly that from CI — idempotent, checksum-verified,
+# platform packages before the main package — so no human ever has to publish from a
+# laptop. Once every package exists and trusted publishers are configured, release.yml
+# takes over keylessly from a tag push and this file is only needed again to bootstrap
+# a brand-new package name.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish (e.g. v0.1.0). Its GitHub Release + archives must already exist."
+        required: true
+        type: string
+
+run-name: "publish ${{ inputs.tag }}"
+
+# Deny-by-default at the top level; each job opts into exactly what it needs
+# (mirrors release.yml).
+permissions: {}
+
+concurrency:
+  group: publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # npm: verify the release archives, place binaries, publish the FIVE platform
+  # packages first and @dean0x/self last. Token path (NPM_TOKEN secret) uses
+  # --provenance; otherwise falls back to OIDC trusted publishing. Idempotent.
+  # ---------------------------------------------------------------------------
+  npm-publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout at the tag + gh release download
+      id-token: write # OIDC trusted publishing AND provenance on the token path
+    env:
+      TAG: ${{ inputs.tag }}
+      # Empty when the secret is unset -> the OIDC trusted-publishing path (identical
+      # to release.yml, which sets registry-url with no NODE_AUTH_TOKEN).
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout at the tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Assert tag == Cargo.toml == npm/self/package.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          # Anchored so "rust-version" / deps can never match; npm read via exact JSON parse.
+          cargo_ver="$(grep -m1 -E '^version[[:space:]]*=' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          npm_ver="$(node -p "require('./npm/self/package.json').version")"
+          echo "tag=${ver}  cargo=${cargo_ver}  npm/self=${npm_ver}"
+          if [ "${ver}" != "${cargo_ver}" ]; then
+            echo "::error::tag v${ver} != Cargo.toml version ${cargo_ver}"
+            exit 1
+          fi
+          if [ "${ver}" != "${npm_ver}" ]; then
+            echo "::error::tag v${ver} != npm/self/package.json version ${npm_ver}"
+            exit 1
+          fi
+
+      - name: Setup Node (>= 22.14 required for trusted publishing)
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm to >= 11.5.1 (trusted-publishing floor)
+        run: npm install -g npm@latest
+
+      - name: Show tooling versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Download release archives + checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Grabs the five archives (.tar.gz / .zip) and their per-file .sha256;
+          # SHA256SUMS does not match this glob and is intentionally not needed.
+          gh release download "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --dir dist \
+            --pattern 'self-v*'
+          echo "downloaded:"
+          ls -1 dist
+
+      - name: Verify checksums and place binaries into platform packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+
+          # verify_and_place <platform-dir> <rust-target> <ext>
+          #   ext="" for the four unix tar.gz targets, ".exe" for the windows zip.
+          verify_and_place() {
+            local platform="$1" target="$2" ext="$3"
+            local arc sha dir binsrc destdir
+            if [ -z "${ext}" ]; then
+              arc="self-v${ver}-${target}.tar.gz"
+            else
+              arc="self-v${ver}-${target}.zip"
+            fi
+            sha="${arc}.sha256"
+            dir="self-v${ver}-${target}"
+
+            if [ ! -f "dist/${arc}" ]; then
+              echo "::error::missing release archive ${arc}"
+              exit 1
+            fi
+            if [ ! -f "dist/${sha}" ]; then
+              echo "::error::missing checksum ${sha}"
+              exit 1
+            fi
+
+            echo "== verifying ${arc} against ${sha} =="
+            ( cd dist && sha256sum -c "${sha}" )
+
+            rm -rf "dist/${dir}"
+            if [ -z "${ext}" ]; then
+              tar -C dist -xzf "dist/${arc}"
+              binsrc="dist/${dir}/self"
+            else
+              ( cd dist && unzip -o -q "${arc}" )
+              binsrc="dist/${dir}/self.exe"
+            fi
+            if [ ! -f "${binsrc}" ]; then
+              echo "::error::binary ${binsrc} not found inside ${arc}"
+              exit 1
+            fi
+
+            destdir="npm/platforms/${platform}/bin"
+            mkdir -p "${destdir}"
+            if [ -z "${ext}" ]; then
+              cp "${binsrc}" "${destdir}/self"
+              chmod +x "${destdir}/self" # release archives carry the bit; make it explicit
+              echo "placed ${binsrc} -> ${destdir}/self"
+            else
+              cp "${binsrc}" "${destdir}/self.exe"
+              echo "placed ${binsrc} -> ${destdir}/self.exe"
+            fi
+          }
+
+          verify_and_place linux-x64    x86_64-unknown-linux-gnu  ""
+          verify_and_place linux-arm64  aarch64-unknown-linux-gnu ""
+          verify_and_place darwin-x64   x86_64-apple-darwin       ""
+          verify_and_place darwin-arm64 aarch64-apple-darwin      ""
+          verify_and_place windows-x64  x86_64-pc-windows-msvc    ".exe"
+
+      - name: Publish platform packages first, main last (idempotent)
+        env:
+          # Empty on the OIDC path; setup-node's .npmrc expands ${NODE_AUTH_TOKEN}
+          # to empty and trusted publishing takes over (same as release.yml).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+
+          # Build publish flags as an array (no word-splitting surprises).
+          flags=(--access public)
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            echo "auth: NPM_TOKEN present -> token publish with --provenance"
+            flags+=(--provenance)
+          else
+            echo "auth: no NPM_TOKEN -> OIDC trusted publishing (provenance automatic)"
+          fi
+
+          # publish_if_absent <package-name> <package-dir>
+          #   Skips when <name>@<ver> is already on the registry, so reruns and
+          #   partial-failure recovery are safe.
+          publish_if_absent() {
+            local pkg="$1" dir="$2"
+            if npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
+              echo "skip: ${pkg}@${ver} already published"
+              return 0
+            fi
+            echo "== publishing ${pkg}@${ver} =="
+            npm publish "${flags[@]}" "${dir}"
+          }
+
+          failed=0
+          for p in linux-x64 linux-arm64 darwin-x64 darwin-arm64 windows-x64; do
+            if ! publish_if_absent "@dean0x/self-${p}" "npm/platforms/${p}"; then
+              echo "::error::failed to publish @dean0x/self-${p}@${ver}"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "${failed}" -ne 0 ]; then
+            echo "::error::${failed} platform package(s) failed; refusing to publish main"
+            exit 1
+          fi
+
+          # Main package last: its optionalDependencies would 404 if it landed first.
+          publish_if_absent "@dean0x/self" "npm/self"
+
+  # ---------------------------------------------------------------------------
+  # crates.io: independent of the npm job. Token path (CARGO_REGISTRY_TOKEN
+  # secret) or OIDC trusted publishing. Idempotent via the crates.io API.
+  # ---------------------------------------------------------------------------
+  crates-publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout at the tag
+      id-token: write # OIDC token exchange for crates.io trusted publishing
+    env:
+      TAG: ${{ inputs.tag }}
+      # Empty when the secret is unset -> the OIDC path is taken below.
+      CARGO_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - name: Checkout at the tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Assert tag == Cargo.toml == npm/self/package.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          cargo_ver="$(grep -m1 -E '^version[[:space:]]*=' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          npm_ver="$(node -p "require('./npm/self/package.json').version")"
+          echo "tag=${ver}  cargo=${cargo_ver}  npm/self=${npm_ver}"
+          if [ "${ver}" != "${cargo_ver}" ]; then
+            echo "::error::tag v${ver} != Cargo.toml version ${cargo_ver}"
+            exit 1
+          fi
+          if [ "${ver}" != "${npm_ver}" ]; then
+            echo "::error::tag v${ver} != npm/self/package.json version ${npm_ver}"
+            exit 1
+          fi
+
+      - name: Check crates.io for an existing self-cli version
+        id: idem
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          code="$(curl -sS --retry 3 --retry-connrefused --max-time 30 \
+            -o /dev/null -w '%{http_code}' \
+            -A 'self-cli publish workflow (github.com/dean0x/self)' \
+            "https://crates.io/api/v1/crates/self-cli/${ver}")"
+          echo "crates.io returned HTTP ${code} for self-cli ${ver}"
+          if [ "${code}" = "200" ]; then
+            echo "self-cli ${ver} is already on crates.io; skipping publish"
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Install stable Rust
+        if: steps.idem.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Authenticate to crates.io (OIDC trusted publishing)
+        id: auth
+        if: steps.idem.outputs.skip != 'true' && env.CARGO_TOKEN == ''
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: cargo publish
+        if: steps.idem.outputs.skip != 'true'
+        env:
+          # Prefer the stored secret; otherwise use the OIDC-exchanged short-lived token.
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.auth.outputs.token }}
+        run: cargo publish --locked
