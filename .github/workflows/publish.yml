@@ -90,12 +90,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          # Grabs the five archives (.tar.gz / .zip) and their per-file .sha256;
-          # SHA256SUMS does not match this glob and is intentionally not needed.
+          # Downloads the five archives (.tar.gz / .zip) and the combined SHA256SUMS.
+          # Two --pattern flags because SHA256SUMS does not start with "self-v".
           gh release download "${TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --dir dist \
-            --pattern 'self-v*'
+            --pattern 'self-v*' \
+            --pattern 'SHA256SUMS'
           echo "downloaded:"
           ls -1 dist
 
@@ -105,30 +106,53 @@ jobs:
           set -euo pipefail
           ver="${TAG#v}"
 
-          # verify_and_place <platform-dir> <rust-target> <ext>
+          # ── 1. Confirm SHA256SUMS was downloaded ──────────────────────────────
+          if [ ! -f dist/SHA256SUMS ]; then
+            echo "::error::dist/SHA256SUMS not found"
+            exit 1
+          fi
+
+          # ── 2. Confirm all five expected archives are listed in SHA256SUMS ────
+          expected_archives=(
+            "self-v${ver}-x86_64-unknown-linux-gnu.tar.gz"
+            "self-v${ver}-aarch64-unknown-linux-gnu.tar.gz"
+            "self-v${ver}-x86_64-apple-darwin.tar.gz"
+            "self-v${ver}-aarch64-apple-darwin.tar.gz"
+            "self-v${ver}-x86_64-pc-windows-msvc.zip"
+          )
+          missing=()
+          for arc in "${expected_archives[@]}"; do
+            if ! grep -qF "${arc}" dist/SHA256SUMS; then
+              missing+=("${arc}")
+            fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::SHA256SUMS is missing entries for:"
+            for m in "${missing[@]}"; do echo "  ${m}"; done
+            exit 1
+          fi
+
+          # ── 3. Verify all five archives against SHA256SUMS in one pass ────────
+          echo "== verifying archives against SHA256SUMS =="
+          ( cd dist && sha256sum -c SHA256SUMS )
+
+          # ── 4. Extract and place binaries into platform packages ──────────────
+          # place_binary <platform-dir> <rust-target> <ext>
           #   ext="" for the four unix tar.gz targets, ".exe" for the windows zip.
-          verify_and_place() {
+          place_binary() {
             local platform="$1" target="$2" ext="$3"
-            local arc sha dir binsrc destdir
+            local arc dir binsrc destdir
             if [ -z "${ext}" ]; then
               arc="self-v${ver}-${target}.tar.gz"
             else
               arc="self-v${ver}-${target}.zip"
             fi
-            sha="${arc}.sha256"
             dir="self-v${ver}-${target}"
 
             if [ ! -f "dist/${arc}" ]; then
               echo "::error::missing release archive ${arc}"
               exit 1
             fi
-            if [ ! -f "dist/${sha}" ]; then
-              echo "::error::missing checksum ${sha}"
-              exit 1
-            fi
-
-            echo "== verifying ${arc} against ${sha} =="
-            ( cd dist && sha256sum -c "${sha}" )
 
             rm -rf "dist/${dir}"
             if [ -z "${ext}" ]; then
@@ -155,11 +179,11 @@ jobs:
             fi
           }
 
-          verify_and_place linux-x64    x86_64-unknown-linux-gnu  ""
-          verify_and_place linux-arm64  aarch64-unknown-linux-gnu ""
-          verify_and_place darwin-x64   x86_64-apple-darwin       ""
-          verify_and_place darwin-arm64 aarch64-apple-darwin      ""
-          verify_and_place windows-x64  x86_64-pc-windows-msvc    ".exe"
+          place_binary linux-x64    x86_64-unknown-linux-gnu  ""
+          place_binary linux-arm64  aarch64-unknown-linux-gnu ""
+          place_binary darwin-x64   x86_64-apple-darwin       ""
+          place_binary darwin-arm64 aarch64-apple-darwin      ""
+          place_binary windows-x64  x86_64-pc-windows-msvc    ".exe"
 
       - name: Publish platform packages first, main last (idempotent)
         env:
