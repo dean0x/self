@@ -7,6 +7,9 @@
     "type": "git",
     "url": "git+https://github.com/dean0x/self.git"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "os": ["linux"],
   "cpu": ["arm64"],
   "publishConfig": {
