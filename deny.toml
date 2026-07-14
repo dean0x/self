@@ -1,0 +1,23 @@
+[advisories]
+# Deny any yanked crate.
+yanked = "deny"
+
+[licenses]
+# Allow the licenses present in this crate's dependency tree.
+# Verified against `cargo tree` output (serde_json + transitives):
+#   MIT, Apache-2.0, Unicode-3.0 (indexmap), Unlicense (memchr)
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+]
+
+[bans]
+# Warn on duplicate versions; deny on multiple crates satisfying the same dep.
+multiple-versions = "warn"
+
+[sources]
+# Deny crates from unknown registries or arbitrary git sources.
+unknown-registry = "deny"
+unknown-git = "deny"
