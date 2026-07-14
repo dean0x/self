@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/v/%40dean0x%2Fself.svg)](https://www.npmjs.com/package/@dean0x/self)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A self-learning & self-improving layer for coding agents (Claude Code, Codex).
+A self-learning & self-improvement layer for coding agents (Claude Code, Codex).
 Fully ambient: two background subagents — a **learner** and an **improver** —
 dispatched at session start, learning procedures as native skills. Everything of
 substance is in **[spec.md](spec.md)**; read that first.
@@ -45,7 +45,7 @@ Three channels — pick one, then run `self init`:
   CLI at build):
   - `preamble.md` — marker block installed into `~/.claude/CLAUDE.md` (M3: `~/.codex/AGENTS.md`)
   - `constitution.md` — invariants, installed to `~/.self/constitution.md`
-  - `agents/` — background agent definitions (`SelfLearning`, `SelfImproving`)
+  - `agents/` — background agent definitions (`SelfLearning`, `SelfImprovement`)
   - `seed/` — the initial `~/.self` corpus skeleton (headers only; the system ships no pre-seeded skills)
 
 The installed instance lives at `~/.self` (git-tracked, agent-owned) — never

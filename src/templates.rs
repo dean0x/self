@@ -19,5 +19,5 @@ pub const RUNS: &str = include_str!("../templates/seed/runs.md");
 /// Factory content for the SelfLearning agent definition.
 pub const SELF_LEARNING: &str = include_str!("../templates/agents/self-learning.md");
 
-/// Factory content for the SelfImproving agent definition.
-pub const SELF_IMPROVING: &str = include_str!("../templates/agents/self-improvement.md");
+/// Factory content for the SelfImprovement agent definition.
+pub const SELF_IMPROVEMENT: &str = include_str!("../templates/agents/self-improvement.md");

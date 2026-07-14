@@ -1,5 +1,5 @@
 ---
-name: SelfImproving
+name: SelfImprovement
 description: Background maintenance agent of the self system. Dispatched at session start by the self preamble to keep the learning corpus structurally sound and tune system instructions from run-log evidence. Never used for user-facing tasks.
 tools: Read, Grep, Glob, Write, Edit, Bash
 background: true

@@ -1,4 +1,4 @@
-# `self` — a self-learning & self-improving layer for coding agents
+# `self` — a self-learning & self-improvement layer for coding agents
 
 **Status:** draft v0.3 · 2026-07-05
 **Repo:** `~/Sandbox/self` (this spec, CLI source, factory templates)
@@ -171,7 +171,7 @@ into the CLI at build from M2 on):
 **Dispatch** — only if ALL are true: this is the first turn of the conversation
 (no prior assistant turns), you are the main agent (not a subagent), and this is
 an interactive user session (not an automated/headless run). Then: launch the
-`SelfLearning` and `SelfImproving` subagents in the background NOW, do not wait
+`SelfLearning` and `SelfImprovement` subagents in the background NOW, do not wait
 for or report their results, and proceed directly with the user's request.
 Both agents self-throttle; launching them redundantly is cheap and safe.
 
@@ -191,7 +191,7 @@ no `claude -p`, no `codex exec`, no hooks spawning processes.
 
 | | Claude Code | Codex |
 |---|---|---|
-| Agent definition | `~/.claude/agents/self-learning.md`, `self-improvement.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/SelfLearning.toml`, `SelfImproving.toml` (`name`, `description`, `developer_instructions`; model inherited) |
+| Agent definition | `~/.claude/agents/self-learning.md`, `self-improvement.md` (YAML frontmatter: `name`, `description`, `tools`, `background: true`, `maxTurns`, model inherited — no `model:` override, per decision) | `~/.codex/agents/SelfLearning.toml`, `SelfImprovement.toml` (`name`, `description`, `developer_instructions`; model inherited) |
 | Launch mechanism | Agent/Task tool, background (default since v2.1.198); main conversation continues | native in-process subagent threads (`features.multi_agent`, default-on in current builds; `[agents] max_threads=6`) |
 | Trigger | preamble instruction | preamble instruction (Codex spawns subagents only when the prompt asks — same model) |
 | Lifetime | **killed if the user exits the session** | scoped to the session |
@@ -634,7 +634,7 @@ evidence in-conversation for each):**
   eligible. Show the run line and `git -C ~/.self log --oneline`.
 - A3 Throttle: immediately dispatch `SelfLearning` again — it must leave no trace
   (no new line, no new commit; shown).
-- A4 Improver end-to-end: dispatch `SelfImproving` once — exactly one run line
+- A4 Improver end-to-end: dispatch `SelfImprovement` once — exactly one run line
   (likely `no-op`) and a commit (shown).
 - A5 Empty corpus, and nothing clobbered by the runs. Two halves:
   - *Install ships nothing:* `REGISTRY.md` lists no skills, `observations.md` and
@@ -676,7 +676,7 @@ evidence only (A6–A10 verify themselves during normal use). Start a session in
 this repo and paste:
 
 ```
-/goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md, observations.md, retired.md, log/runs.md); the corpus is EMPTY as shipped — REGISTRY.md lists no skills and observations.md has no entries, shown; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 4 are present in ~/.claude/settings.json; a dispatched SelfLearning subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched SelfImproving appended one run line with a commit, shown; and ~/.self/constitution.md is still byte-identical to templates/constitution.md after all three runs, shown. Or stop after 25 turns.
+/goal M1 of spec.md is installed and verified in-place: ~/.self exists, git-initialized and seeded from templates/ (constitution.md, REGISTRY.md, observations.md, retired.md, log/runs.md); the corpus is EMPTY as shipped — REGISTRY.md lists no skills and observations.md has no entries, shown; both templates/agents files are installed under ~/.claude/agents/; ~/.claude/CLAUDE.md contains exactly one self:start/self:end block and a diff shown in conversation proves content outside the markers is unchanged; the permission rules from spec 13.1 step 4 are present in ~/.claude/settings.json; a dispatched SelfLearning subagent appended exactly one run line to ~/.self/log/runs.md with a matching git commit, both shown; an immediate second learner dispatch produced no new line and no new commit, shown; a dispatched SelfImprovement appended one run line with a commit, shown; and ~/.self/constitution.md is still byte-identical to templates/constitution.md after all three runs, shown. Or stop after 25 turns.
 ```
 
 **Rollback:** remove the marker block and the two `~/.claude/agents/{self-learning,self-improvement}.md`

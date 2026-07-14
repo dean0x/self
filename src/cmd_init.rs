@@ -147,7 +147,7 @@ fn apply_claude_adapter(home: &Path, claude_dir: &Path, reset: bool) -> Result<(
     )?;
     write_agent_file(
         &agents_dir.join("self-improvement.md"),
-        templates::SELF_IMPROVING,
+        templates::SELF_IMPROVEMENT,
         reset,
     )?;
 
