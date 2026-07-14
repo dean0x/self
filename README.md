@@ -1,6 +1,9 @@
 # self
 
 [![CI](https://github.com/dean0x/self/actions/workflows/ci.yml/badge.svg)](https://github.com/dean0x/self/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/self-cli.svg)](https://crates.io/crates/self-cli)
+[![npm](https://img.shields.io/npm/v/%40dean0x%2Fself.svg)](https://www.npmjs.com/package/@dean0x/self)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A self-learning & self-improving layer for coding agents (Claude Code, Codex).
 Fully ambient: two background subagents — a **learner** and an **improver** —
@@ -65,3 +68,15 @@ and `cargo test`.
 M0 spec ✅ · M1 manual pilot ✅ installed 2026-07-11 (live ~2-week window running) ·
 M2 `self` CLI ✅ · M3 Codex adapter (gated: codex not installed) · M4
 evidence-driven extensions (gated on improver run-log evidence).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites, build instructions, quality gates, and commit conventions.
+
+## Security
+
+Report vulnerabilities privately — do not open public issues. See [SECURITY.md](SECURITY.md) for details.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
