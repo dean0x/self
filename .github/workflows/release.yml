@@ -202,7 +202,7 @@ jobs:
   # ---------------------------------------------------------------------------
   github-release:
     name: GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -261,7 +261,7 @@ jobs:
   # ---------------------------------------------------------------------------
   npm-publish:
     name: Publish to npm
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -334,7 +334,7 @@ jobs:
   # ---------------------------------------------------------------------------
   crates-publish:
     name: Publish to crates.io
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && github.event_name != 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     permissions:
